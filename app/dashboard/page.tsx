@@ -49,7 +49,7 @@ export default async function DashboardPage() {
       .limit(8),
     supabase
       .from("cotacoes")
-      .select("id, numero_cotacao, data_emissao, total, clientes(nome)")
+      .select("id, numero, data, total, clientes(nome)")
       .order("created_at", { ascending: false })
       .limit(5),
   ])
@@ -158,8 +158,8 @@ export default async function DashboardPage() {
     ...cotacoesRecentes.map((c: any) => ({
       id: c.id,
       tipo: "COT",
-      numero: c.numero_cotacao || "-",
-      data: c.data_emissao,
+      numero: c.numero || "-",
+      data: c.data,
       total: c.total,
       estado: null,
       cliente: c.clientes?.nome || "N/A",
