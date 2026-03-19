@@ -171,6 +171,37 @@ export function RecibosClient({
 
       if (error) throw error
 
+      // Criar movimento bancário de entrada (crédito) se conta bancária foi seleccionada
+      if (contaBancariaId) {
+        const conta = contasBancarias.find((c) => c.id === contaBancariaId)
+        if (conta) {
+          // Calcular novo saldo
+          const novoSaldoApos = (conta.saldo_atual || 0) + Number(valor)
+          
+          // Inserir movimento bancário
+          await supabase
+            .from("movimentos_bancarios")
+            .insert({
+              conta_bancaria_id: contaBancariaId,
+              data: new Date().toISOString().split("T")[0],
+              descricao: `Recibo ${numeroRecibo} - ${clientes.find(c => c.id === clienteId)?.nome || "Cliente"}`,
+              referencia: numeroRecibo,
+              tipo: "credito",
+              valor: Number(valor),
+              saldo_apos: novoSaldoApos,
+              conciliado: false,
+              documento_tipo: "RC",
+              documento_id: newRecibo.id,
+            })
+
+          // Actualizar saldo da conta bancária
+          await supabase
+            .from("contas_bancarias")
+            .update({ saldo_atual: novoSaldoApos, updated_at: new Date().toISOString() })
+            .eq("id", contaBancariaId)
+        }
+      }
+
       // Se vinculado a factura, actualizar estado baseado no pagamento
       if (facturaId && selectedFactura) {
         const novoRecebido = selectedFactura.ja_recebido + Number(valor)

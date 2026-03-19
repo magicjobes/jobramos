@@ -65,6 +65,13 @@ interface ItemForm {
   taxa_iva: number
 }
 
+interface ContaBancaria {
+  id: string
+  nome: string
+  banco: string | null
+  saldo_atual: number
+}
+
 interface FacturasClientProps {
   facturas: any[]
   clientes: any[]
@@ -74,6 +81,7 @@ interface FacturasClientProps {
   empresa: any
   recebidoPorFactura: Record<string, number>
   ncPorFactura: Record<string, number>
+  contasBancarias: ContaBancaria[]
 }
 
 export function FacturasClient({
@@ -85,6 +93,7 @@ export function FacturasClient({
   empresa,
   recebidoPorFactura,
   ncPorFactura,
+  contasBancarias,
 }: FacturasClientProps) {
   const [facturas, setFacturas] = useState(initialFacturas)
   const [showDialog, setShowDialog] = useState(false)
@@ -102,6 +111,7 @@ export function FacturasClient({
   const [observacoes, setObservacoes] = useState("")
   const [motivoNota, setMotivoNota] = useState("")
   const [facturaOrigemId, setFacturaOrigemId] = useState("")
+  const [contaBancariaId, setContaBancariaId] = useState("")
   const [itens, setItens] = useState<ItemForm[]>([
     { produto_id: "", descricao: "", quantidade: 1, preco_unitario: 0, taxa_iva: 16 },
   ])
@@ -154,6 +164,7 @@ export function FacturasClient({
     setObservacoes("")
     setMotivoNota("")
     setFacturaOrigemId("")
+    setContaBancariaId("")
     setItens([{ produto_id: "", descricao: "", quantidade: 1, preco_unitario: 0, taxa_iva: 16 }])
     setItensOrigem([])
   }
@@ -347,6 +358,37 @@ export function FacturasClient({
           })
 
       await supabase.from("factura_itens").insert(itensData)
+
+      // Se for NC, criar movimento bancário de saída (débito) - dinheiro a devolver ao cliente
+      if (tipoDocumento === "NC" && contaBancariaId) {
+        const conta = contasBancarias.find((c) => c.id === contaBancariaId)
+        if (conta) {
+          // Calcular novo saldo (débito = saída)
+          const novoSaldoApos = (conta.saldo_atual || 0) - totais.total
+          
+          // Inserir movimento bancário
+          await supabase
+            .from("movimentos_bancarios")
+            .insert({
+              conta_bancaria_id: contaBancariaId,
+              data: new Date().toISOString().split("T")[0],
+              descricao: `NC ${numeroDoc} - Devolução a ${clientes.find(c => c.id === clienteId)?.nome || "Cliente"}`,
+              referencia: numeroDoc,
+              tipo: "debito",
+              valor: totais.total,
+              saldo_apos: novoSaldoApos,
+              conciliado: false,
+              documento_tipo: "NC",
+              documento_id: newFactura.id,
+            })
+
+          // Actualizar saldo da conta bancária
+          await supabase
+            .from("contas_bancarias")
+            .update({ saldo_atual: novoSaldoApos, updated_at: new Date().toISOString() })
+            .eq("id", contaBancariaId)
+        }
+      }
 
       // Se for NC ou ND, actualizar o estado da factura de origem
       if (tipoDocumento === "NC" && facturaOrigemId) {
@@ -830,6 +872,24 @@ export function FacturasClient({
                       onChange={(e) => setMotivoNota(e.target.value)}
                       placeholder="Ex: Devolucao de mercadoria, erro de facturacao, produto danificado..."
                     />
+                  </div>
+
+                  {/* Conta bancária para débito (saída) - opcional */}
+                  <div className="space-y-2">
+                    <Label>Conta Bancaria para Devolucao</Label>
+                    <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione a conta para debitar o valor..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contasBancarias.map((conta) => (
+                          <SelectItem key={conta.id} value={conta.id}>
+                            {conta.nome} {conta.banco && `(${conta.banco})`} - Saldo: {formatarMZN(conta.saldo_atual)} MZN
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Se seleccionada, sera criado um movimento de saida (debito) nesta conta</p>
                   </div>
                 </div>
 
