@@ -359,6 +359,90 @@ export function FacturasClient({
 
       await supabase.from("factura_itens").insert(itensData)
 
+      // Gestão de Stock - Decrementar stock para FT, repor stock para NC
+      const userId = (await supabase.auth.getUser()).data.user?.id
+      
+      if (tipoDocumento === "FT") {
+        // Factura: decrementar stock dos produtos vendidos
+        for (const item of itens) {
+          if (item.produto_id) {
+            // Buscar stock actual do produto
+            const { data: produtoActual } = await supabase
+              .from("produtos")
+              .select("stock")
+              .eq("id", item.produto_id)
+              .single()
+            
+            if (produtoActual) {
+              const novoStock = Math.max(0, (produtoActual.stock || 0) - item.quantidade)
+              
+              // Actualizar stock do produto
+              await supabase
+                .from("produtos")
+                .update({ stock: novoStock })
+                .eq("id", item.produto_id)
+              
+              // Registar movimento de stock (saída)
+              await supabase.from("movimentos_stock").insert({
+                empresa_id: empresaId,
+                produto_id: item.produto_id,
+                tipo: "saida",
+                quantidade: item.quantidade,
+                documento_tipo: "FT",
+                documento_id: newFactura.id,
+                documento_referencia: numeroDoc,
+                data: new Date().toISOString().split("T")[0],
+                user_id: userId,
+              })
+            }
+          }
+        }
+      } else if (tipoDocumento === "NC") {
+        // Nota de Crédito: repor stock dos produtos devolvidos
+        for (const item of itensNCSeleccionados) {
+          // Encontrar o produto_id a partir do item original da factura
+          const { data: itemOriginal } = await supabase
+            .from("factura_itens")
+            .select("produto_id")
+            .eq("factura_id", facturaOrigemId)
+            .eq("descricao", item.descricao)
+            .single()
+          
+          if (itemOriginal?.produto_id) {
+            // Buscar stock actual do produto
+            const { data: produtoActual } = await supabase
+              .from("produtos")
+              .select("stock")
+              .eq("id", itemOriginal.produto_id)
+              .single()
+            
+            if (produtoActual) {
+              const novoStock = (produtoActual.stock || 0) + item.qtd_creditar
+              
+              // Actualizar stock do produto
+              await supabase
+                .from("produtos")
+                .update({ stock: novoStock })
+                .eq("id", itemOriginal.produto_id)
+              
+              // Registar movimento de stock (entrada - devolução)
+              await supabase.from("movimentos_stock").insert({
+                empresa_id: empresaId,
+                produto_id: itemOriginal.produto_id,
+                tipo: "entrada",
+                quantidade: item.qtd_creditar,
+                documento_tipo: "NC",
+                documento_id: newFactura.id,
+                documento_referencia: numeroDoc,
+                observacoes: `Devolução via NC - ${motivoNota}`,
+                data: new Date().toISOString().split("T")[0],
+                user_id: userId,
+              })
+            }
+          }
+        }
+      }
+
       // Se for NC, criar movimento bancário de saída (débito) - dinheiro a devolver ao cliente
       if (tipoDocumento === "NC" && contaBancariaId) {
         // Buscar saldo actual da base de dados (não usar o valor em memória que pode estar desactualizado)
