@@ -22,7 +22,7 @@ export default async function FacturasPage() {
     empresaId = emp?.id
   }
 
-  const [facturasRes, clientesRes, produtosRes, empresaRes, recibosRes] = await Promise.all([
+  const [facturasRes, clientesRes, produtosRes, empresaRes, recibosRes, contasRes] = await Promise.all([
     supabase
       .from("facturas")
       .select(`
@@ -38,6 +38,9 @@ export default async function FacturasPage() {
       ? supabase.from("empresas").select("*").eq("id", empresaId).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("recibos").select("factura_id, valor"),
+    empresaId
+      ? supabase.from("contas_bancarias").select("id, nome, banco, saldo_atual").eq("empresa_id", empresaId).eq("ativa", true)
+      : Promise.resolve({ data: [] }),
   ])
 
   // Calcular total recebido por factura (recibos)
@@ -68,6 +71,7 @@ export default async function FacturasPage() {
         empresa={empresaRes.data}
         recebidoPorFactura={recebidoPorFactura}
         ncPorFactura={ncPorFactura}
+        contasBancarias={contasRes.data || []}
       />
     </div>
   )
