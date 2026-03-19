@@ -31,13 +31,24 @@ export default async function ProdutosPage() {
   if (!empresaId) redirect("/dashboard")
 
   // Get all data in parallel
-  const [produtosRes, fornecedoresRes, movimentosRes, facturasItensRes] = await Promise.all([
+  const [produtosRes, fornecedoresRes, movimentosRes, facturasRes] = await Promise.all([
     supabase.from("produtos").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
     supabase.from("fornecedores").select("id, nome").eq("empresa_id", empresaId).order("nome"),
     supabase.from("movimentos_stock").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
-    supabase.from("factura_itens").select("produto_id, quantidade, facturas!inner(tipo_documento, estado, empresa_id)")
-      .eq("facturas.empresa_id", empresaId),
+    supabase.from("facturas").select("id, tipo_documento, estado").eq("empresa_id", empresaId),
   ])
+
+  // Get factura_itens separately to avoid join issues
+  const facturaIds = (facturasRes.data || []).map(f => f.id)
+  const facturasItensRes = facturaIds.length > 0 
+    ? await supabase.from("factura_itens").select("produto_id, quantidade, factura_id").in("factura_id", facturaIds)
+    : { data: [] }
+  
+  // Map factura info to items
+  const facturasMap = (facturasRes.data || []).reduce((acc: Record<string, any>, f) => {
+    acc[f.id] = f
+    return acc
+  }, {})
 
   // Calculate statistics per product
   const produtosComStats = (produtosRes.data || []).map(produto => {
@@ -47,19 +58,21 @@ export default async function ProdutosPage() {
     
     // Sales from invoices (FT) - exclude cancelled
     const vendasFacturas = (facturasItensRes.data || [])
-      .filter((fi: any) => 
-        fi.produto_id === produto.id && 
-        fi.facturas?.tipo_documento === 'FT' &&
-        fi.facturas?.estado !== 'Anulada'
-      )
+      .filter((fi: any) => {
+        const factura = facturasMap[fi.factura_id]
+        return fi.produto_id === produto.id && 
+          factura?.tipo_documento === 'FT' &&
+          factura?.estado !== 'Anulada'
+      })
       .reduce((acc: number, fi: any) => acc + (Number(fi.quantidade) || 0), 0)
 
     // Returns from credit notes (NC)
     const devolucoes = (facturasItensRes.data || [])
-      .filter((fi: any) => 
-        fi.produto_id === produto.id && 
-        fi.facturas?.tipo_documento === 'NC'
-      )
+      .filter((fi: any) => {
+        const factura = facturasMap[fi.factura_id]
+        return fi.produto_id === produto.id && 
+          factura?.tipo_documento === 'NC'
+      })
       .reduce((acc: number, fi: any) => acc + (Number(fi.quantidade) || 0), 0)
 
     const totalVendido = vendasFacturas - devolucoes + saidasManuais

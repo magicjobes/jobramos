@@ -29,11 +29,13 @@ export default async function FornecedoresPage() {
 
   if (!empresaId) redirect("/dashboard")
 
-  const [fornecedoresRes, produtosRes, fornecedorProdutosRes] = await Promise.all([
+  const [fornecedoresRes, produtosRes] = await Promise.all([
     supabase.from("fornecedores").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
     supabase.from("produtos").select("id, nome, preco, custo_unitario").eq("empresa_id", empresaId).order("nome"),
-    supabase.from("fornecedor_produtos").select("*").eq("empresa_id", empresaId),
   ])
+
+  // Get fornecedor_produtos separately - may be empty if table was just created
+  const fornecedorProdutosRes = await supabase.from("fornecedor_produtos").select("*").eq("empresa_id", empresaId)
 
   return (
     <div>
