@@ -226,13 +226,14 @@ export function ConciliacaoClient({
     const totalDespesas = despesasMes.reduce((a, d) => a + (Number(d.valor) || 0), 0)
     const totalSalarios = salariosMes.reduce((a, s) => a + (Number(s.valor_liquido) || 0), 0)
     
-    // IVA
+    // IVA - Subtrair IVA das notas de crédito (como nos relatórios)
     const ivaCobrado = facturasMes.reduce((a, f) => a + (Number(f.iva) || 0), 0)
+    const ivaNotasCredito = ncMes.reduce((a, f) => a + (Number(f.iva) || 0), 0)
     const ivaSuportado = despesasMes.reduce((a, d) => a + (Number(d.iva_suportado) || 0), 0)
-    const ivaAEntregar = Math.max(0, ivaCobrado - ivaSuportado)
+    const ivaAEntregar = Math.max(0, ivaCobrado - ivaNotasCredito - ivaSuportado)
     
-    // Resultado líquido = Receitas (facturas - NC) - Despesas - Salários
-    const resultadoLiquido = (totalFacturas - totalNC) - totalDespesas - totalSalarios
+    // Resultado líquido = Receitas (facturas - NC) - Despesas - Salários - IVA a entregar
+    const resultadoLiquido = (totalFacturas - totalNC) - totalDespesas - totalSalarios - ivaAEntregar
     
     const saldoBancarioSistema = contasBancarias.reduce((a, c) => a + c.saldo_atual, 0)
     
@@ -243,11 +244,13 @@ export function ConciliacaoClient({
       totalDespesas,
       totalSalarios,
       ivaCobrado,
+      ivaNotasCredito,
       ivaSuportado,
       ivaAEntregar,
       resultadoLiquido,
       saldoBancarioSistema,
       numFacturas: facturasMes.length,
+      numNC: ncMes.length,
       numRecibos: recibosMes.length,
       numDespesas: despesasMes.length,
       numSalarios: salariosMes.length,
@@ -836,24 +839,35 @@ export function ConciliacaoClient({
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3 mt-4">
+                    <div className="grid gap-4 md:grid-cols-4 mt-4">
                       <div className="rounded-lg border bg-card p-3">
-                        <p className="text-xs text-muted-foreground">IVA Cobrado</p>
+                        <p className="text-xs text-muted-foreground">IVA Cobrado (Facturas)</p>
                         <p className="text-lg font-bold">{formatCurrency(dadosPeriodo.ivaCobrado)}</p>
                       </div>
                       <div className="rounded-lg border bg-card p-3">
-                        <p className="text-xs text-muted-foreground">IVA Suportado</p>
-                        <p className="text-lg font-bold">{formatCurrency(dadosPeriodo.ivaSuportado)}</p>
+                        <p className="text-xs text-muted-foreground">IVA Notas Crédito</p>
+                        <p className="text-lg font-bold text-red-600">-{formatCurrency(dadosPeriodo.ivaNotasCredito)}</p>
+                        <p className="text-xs text-muted-foreground">{dadosPeriodo.numNC} NC(s)</p>
                       </div>
                       <div className="rounded-lg border bg-card p-3">
+                        <p className="text-xs text-muted-foreground">IVA Suportado (Despesas)</p>
+                        <p className="text-lg font-bold text-red-600">-{formatCurrency(dadosPeriodo.ivaSuportado)}</p>
+                      </div>
+                      <div className="rounded-lg border bg-amber-50 p-3 border-amber-200">
                         <p className="text-xs text-muted-foreground">IVA a Entregar</p>
                         <p className="text-lg font-bold text-amber-600">{formatCurrency(dadosPeriodo.ivaAEntregar)}</p>
+                        <p className="text-xs text-muted-foreground">({formatCurrency(dadosPeriodo.ivaCobrado)} - {formatCurrency(dadosPeriodo.ivaNotasCredito)} - {formatCurrency(dadosPeriodo.ivaSuportado)})</p>
                       </div>
                     </div>
 
                     <div className="mt-4 p-3 rounded-lg border-2 border-primary/30 bg-card">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium">Resultado Líquido do Período</p>
+                        <div>
+                          <p className="font-medium">Resultado Líquido do Período</p>
+                          <p className="text-xs text-muted-foreground">
+                            (Facturas - Notas Crédito - Despesas - Salários - IVA a Entregar)
+                          </p>
+                        </div>
                         <p className={`text-2xl font-bold ${dadosPeriodo.resultadoLiquido >= 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(dadosPeriodo.resultadoLiquido)}
                         </p>
@@ -888,17 +902,26 @@ export function ConciliacaoClient({
 
                   <div className="border-t pt-4">
                     <h4 className="font-medium mb-3">IVA do Período</h4>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {[
-                        { label: "IVA Cobrado", val: fechoAtual.iva_cobrado },
-                        { label: "IVA Suportado", val: fechoAtual.iva_suportado },
-                        { label: "IVA a Entregar", val: fechoAtual.iva_a_entregar, bg: true },
-                      ].map(({ label, val, bg }) => (
-                        <div key={label} className={`rounded-lg border p-4 ${bg ? "bg-muted/50" : ""}`}>
-                          <p className="text-sm text-muted-foreground">{label}</p>
-                          <p className="text-xl font-bold">{formatCurrency(val)}</p>
-                        </div>
-                      ))}
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div className="rounded-lg border p-4">
+                        <p className="text-sm text-muted-foreground">IVA Cobrado (Facturas)</p>
+                        <p className="text-xl font-bold">{formatCurrency(fechoAtual.iva_cobrado)}</p>
+                      </div>
+                      <div className="rounded-lg border p-4">
+                        <p className="text-sm text-muted-foreground">IVA Notas Crédito</p>
+                        <p className="text-xl font-bold text-red-600">-{formatCurrency(dadosPeriodo.ivaNotasCredito)}</p>
+                      </div>
+                      <div className="rounded-lg border p-4">
+                        <p className="text-sm text-muted-foreground">IVA Suportado (Despesas)</p>
+                        <p className="text-xl font-bold text-red-600">-{formatCurrency(fechoAtual.iva_suportado)}</p>
+                      </div>
+                      <div className="rounded-lg border p-4 bg-amber-50 border-amber-200">
+                        <p className="text-sm text-muted-foreground">IVA a Entregar</p>
+                        <p className="text-xl font-bold text-amber-600">{formatCurrency(fechoAtual.iva_a_entregar)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          (Cobrado - NC - Suportado)
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -952,6 +975,9 @@ export function ConciliacaoClient({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Resultado Líquido do Período</p>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          (Facturas - NC - Despesas - Salários - IVA a Entregar)
+                        </p>
                         <p className={`text-3xl font-bold ${fechoAtual.resultado_liquido >= 0 ? "text-green-600" : "text-red-600"}`}>
                           {formatCurrency(fechoAtual.resultado_liquido)}
                         </p>
