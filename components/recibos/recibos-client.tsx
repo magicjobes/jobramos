@@ -173,10 +173,17 @@ export function RecibosClient({
 
       // Criar movimento bancário de entrada (crédito) se conta bancária foi seleccionada
       if (contaBancariaId) {
-        const conta = contasBancarias.find((c) => c.id === contaBancariaId)
-        if (conta) {
-          // Calcular novo saldo
-          const novoSaldoApos = (conta.saldo_atual || 0) + Number(valor)
+        // Buscar saldo actual da base de dados (não usar o valor em memória que pode estar desactualizado)
+        const { data: contaActual } = await supabase
+          .from("contas_bancarias")
+          .select("saldo_atual")
+          .eq("id", contaBancariaId)
+          .single()
+        
+        if (contaActual) {
+          // Calcular novo saldo usando o valor actual da BD
+          const saldoActual = Number(contaActual.saldo_atual) || 0
+          const novoSaldoApos = saldoActual + Number(valor)
           
           // Inserir movimento bancário
           await supabase

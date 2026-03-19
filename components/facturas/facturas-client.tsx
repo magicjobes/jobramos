@@ -361,10 +361,17 @@ export function FacturasClient({
 
       // Se for NC, criar movimento bancário de saída (débito) - dinheiro a devolver ao cliente
       if (tipoDocumento === "NC" && contaBancariaId) {
-        const conta = contasBancarias.find((c) => c.id === contaBancariaId)
-        if (conta) {
-          // Calcular novo saldo (débito = saída)
-          const novoSaldoApos = (conta.saldo_atual || 0) - totais.total
+        // Buscar saldo actual da base de dados (não usar o valor em memória que pode estar desactualizado)
+        const { data: contaActual } = await supabase
+          .from("contas_bancarias")
+          .select("saldo_atual")
+          .eq("id", contaBancariaId)
+          .single()
+        
+        if (contaActual) {
+          // Calcular novo saldo (débito = saída) usando o valor actual da BD
+          const saldoActual = Number(contaActual.saldo_atual) || 0
+          const novoSaldoApos = saldoActual - totais.total
           
           // Inserir movimento bancário
           await supabase
