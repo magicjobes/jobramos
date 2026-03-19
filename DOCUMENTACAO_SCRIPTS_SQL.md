@@ -4,7 +4,7 @@
 - **Total de Scripts**: 16
 - **Scripts de Criação**: 8 (Tabelas principais)
 - **Scripts de Alteração**: 8 (Adições de colunas)
-- **Tabelas Ativas no Supabase**: 9 + 2 tabelas de itens
+- **Tabelas Ativas no Supabase**: 9 + 2 tabelas de iten
 - **Scripts em Uso**: 14 (ativos)
 - **Scripts Não Utilizados**: 2 (scripts 9 e 13 redundantes)
 
