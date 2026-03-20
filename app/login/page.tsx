@@ -82,7 +82,7 @@ function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-6">
           <div className="flex items-center gap-3">
-            <Image src="/images/logo.png" alt="Magic Pro Services" width={48} height={48} className="h-12 w-12" loading="eager" priority />
+            <Image src="/images/logo.png" alt="Magic Pro Services" width={48} height={48} className="h-12 w-12" style={{ width: "auto", height: "auto" }} loading="eager" priority />
             <div>
               <h1 className="text-xl font-bold text-foreground">Magic Pro</h1>
               <p className="text-xs text-muted-foreground">Services</p>
