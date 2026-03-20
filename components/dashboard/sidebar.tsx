@@ -6,6 +6,7 @@ import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { logLogout } from "@/lib/audit-log"
 import {
   Home,
   FileText,
@@ -24,6 +25,7 @@ import {
   Wallet,
   Banknote,
   Calculator,
+  Activity,
 } from "lucide-react"
 
 const menuItems = [
@@ -44,6 +46,7 @@ const adminMenuItems = [
   { href: "/dashboard/salarios", label: "Salarios", icon: Banknote },
   { href: "/dashboard/conciliacao", label: "Conciliacao", icon: Calculator },
   { href: "/dashboard/relatorios", label: "Relatorios", icon: BarChart3 },
+  { href: "/dashboard/logs", label: "Logs Actividade", icon: Activity },
   { href: "/dashboard/configuracoes", label: "Configuracoes", icon: Settings },
 ]
 
@@ -81,6 +84,7 @@ export function Sidebar() {
   }, [])
 
   const handleLogout = async () => {
+    await logLogout()
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")
@@ -91,7 +95,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 border-b border-sidebar-muted p-4">
-        <Image src="/images/logo.png" alt="Magic Pro Services" width={40} height={40} className="h-10 w-10" style={{ width: "auto", height: "auto" }} />
+        <Image src="/images/logo.png" alt="Magic Pro Services" width={40} height={40} className="h-10 w-10 object-contain" />
         <div>
           <h1 className="font-semibold leading-tight">Magic Pro</h1>
           <p className="text-xs text-sidebar-foreground/60">Services</p>

@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
+import { logEmitir } from "@/lib/audit-log"
 import { Plus, Printer, Search, Receipt, Eye, Building2 } from "lucide-react"
 import {
   FORMAS_PAGAMENTO,
@@ -243,10 +244,19 @@ export function RecibosClient({
         }
       }
 
-      setRecibos([newRecibo, ...recibos])
-      setShowDialog(false)
-      resetForm()
-      toast.success(`Recibo ${numeroRecibo} emitido com sucesso`)
+  setRecibos([newRecibo, ...recibos])
+  setShowDialog(false)
+  resetForm()
+  
+  // Registar log de actividade
+  const clienteNome = clientes.find(c => c.id === clienteId)?.nome || "Cliente"
+  await logEmitir("recibos", newRecibo.id, `Recibo ${numeroRecibo} emitido para ${clienteNome} - ${formatarMZN(Number(valor))} MZN`, {
+    numero: numeroRecibo,
+    cliente: clienteNome,
+    valor: Number(valor)
+  })
+  
+  toast.success(`Recibo ${numeroRecibo} emitido com sucesso`)
     } catch (error: any) {
       toast.error("Erro ao emitir recibo: " + error.message)
     } finally {

@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
+import { logEmitir, logAnular } from "@/lib/audit-log"
 import {
   Plus,
   Trash2,
@@ -533,9 +534,19 @@ export function FacturasClient({
         setFacturas([newFactura, ...facturas])
       }
 
-      setShowDialog(false)
-      resetForm()
-      toast.success(`${TIPO_DOCUMENTO_LABELS[tipoDocumento]} ${numeroDoc} criada com sucesso`)
+  setShowDialog(false)
+  resetForm()
+  
+  // Registar log de actividade
+  const clienteNome = clientes.find(c => c.id === clienteId)?.nome || "Cliente"
+  await logEmitir("facturas", newFactura.id, `${TIPO_DOCUMENTO_LABELS[tipoDocumento]} ${numeroDoc} emitida para ${clienteNome} - ${formatarMZN(totais.total)} MZN`, {
+    numero: numeroDoc,
+    tipo: tipoDocumento,
+    cliente: clienteNome,
+    total: totais.total
+  })
+  
+  toast.success(`${TIPO_DOCUMENTO_LABELS[tipoDocumento]} ${numeroDoc} criada com sucesso`)
     } catch (error: any) {
       toast.error("Erro ao criar documento: " + error.message)
     } finally {
