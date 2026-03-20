@@ -29,13 +29,21 @@ export default async function FornecedoresPage() {
 
   if (!empresaId) redirect("/dashboard")
 
-  const [fornecedoresRes, produtosRes] = await Promise.all([
-    supabase.from("fornecedores").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
-    supabase.from("produtos").select("id, nome, preco, custo_unitario").eq("empresa_id", empresaId).order("nome"),
-  ])
+  let fornecedoresRes, produtosRes, fornecedorProdutosRes
+  try {
+    [fornecedoresRes, produtosRes] = await Promise.all([
+      supabase.from("fornecedores").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
+      supabase.from("produtos").select("id, nome, preco, custo_unitario").eq("empresa_id", empresaId).order("nome"),
+    ])
 
-  // Get fornecedor_produtos separately - may be empty if table was just created
-  const fornecedorProdutosRes = await supabase.from("fornecedor_produtos").select("*").eq("empresa_id", empresaId)
+    // Get fornecedor_produtos separately - may be empty if table was just created
+    fornecedorProdutosRes = await supabase.from("fornecedor_produtos").select("*").eq("empresa_id", empresaId)
+  } catch (error) {
+    console.error("[v0] Error fetching fornecedores data:", error)
+    fornecedoresRes = { data: [] }
+    produtosRes = { data: [] }
+    fornecedorProdutosRes = { data: [] }
+  }
 
   return (
     <div>
