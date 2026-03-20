@@ -30,13 +30,23 @@ export default async function ProdutosPage() {
 
   if (!empresaId) redirect("/dashboard")
 
-  // Get all data in parallel
-  const [produtosRes, fornecedoresRes, movimentosRes, facturasRes] = await Promise.all([
-    supabase.from("produtos").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
-    supabase.from("fornecedores").select("id, nome").eq("empresa_id", empresaId).order("nome"),
-    supabase.from("movimentos_stock").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
-    supabase.from("facturas").select("id, tipo_documento, estado").eq("empresa_id", empresaId),
-  ])
+  // Get all data in parallel with error handling
+  let produtosRes, fornecedoresRes, movimentosRes, facturasRes
+  try {
+    [produtosRes, fornecedoresRes, movimentosRes, facturasRes] = await Promise.all([
+      supabase.from("produtos").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
+      supabase.from("fornecedores").select("id, nome").eq("empresa_id", empresaId).order("nome"),
+      supabase.from("movimentos_stock").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }),
+      supabase.from("facturas").select("id, tipo_documento, estado").eq("empresa_id", empresaId),
+    ])
+  } catch (error) {
+    console.error("[v0] Error fetching produtos data:", error)
+    // Return empty data if queries fail
+    produtosRes = { data: [] }
+    fornecedoresRes = { data: [] }
+    movimentosRes = { data: [] }
+    facturasRes = { data: [] }
+  }
 
   // Get factura_itens separately to avoid join issues
   const facturaIds = (facturasRes.data || []).map(f => f.id)
