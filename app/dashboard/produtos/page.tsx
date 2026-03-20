@@ -6,29 +6,40 @@ import { redirect } from "next/navigation"
 export default async function ProdutosPage() {
   const supabase = await createClient()
 
-  // Get user and empresa
+  // Get user and empresa (same logic as dashboard/facturas pages)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresa } = await supabase
-    .from("empresas")
-    .select("id")
+  // First check if user is a funcionario
+  const { data: funcionario } = await supabase
+    .from("funcionarios")
+    .select("empresa_id")
     .eq("user_id", user.id)
-    .single()
+    .maybeSingle()
 
-  let empresaId = empresa?.id
+  let empresaId = funcionario?.empresa_id
 
+  // If not a funcionario, check if user owns an empresa
   if (!empresaId) {
-    const { data: funcionario } = await supabase
-      .from("funcionarios")
-      .select("empresa_id")
-      .eq("email", user.email)
-      .eq("estado", "Activo")
-      .single()
-    empresaId = funcionario?.empresa_id
+    const { data: empresa } = await supabase
+      .from("empresas")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+    empresaId = empresa?.id
   }
 
-  if (!empresaId) redirect("/dashboard")
+  // If still no empresaId, user has no access - show empty state instead of redirect loop
+  if (!empresaId) {
+    return (
+      <div>
+        <Header title="Produtos" subtitle="Gestão de produtos, stock e inventário" />
+        <div className="p-6 text-center text-muted-foreground">
+          Nenhuma empresa associada. Configure a sua empresa primeiro.
+        </div>
+      </div>
+    )
+  }
 
   // Get all data in parallel with error handling
   let produtosRes, fornecedoresRes, movimentosRes, facturasRes

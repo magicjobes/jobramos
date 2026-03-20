@@ -9,25 +9,36 @@ export default async function FornecedoresPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresa } = await supabase
-    .from("empresas")
-    .select("id")
+  // First check if user is a funcionario
+  const { data: funcionario } = await supabase
+    .from("funcionarios")
+    .select("empresa_id")
     .eq("user_id", user.id)
-    .single()
+    .maybeSingle()
 
-  let empresaId = empresa?.id
+  let empresaId = funcionario?.empresa_id
 
+  // If not a funcionario, check if user owns an empresa
   if (!empresaId) {
-    const { data: funcionario } = await supabase
-      .from("funcionarios")
-      .select("empresa_id")
-      .eq("email", user.email)
-      .eq("estado", "Activo")
-      .single()
-    empresaId = funcionario?.empresa_id
+    const { data: empresa } = await supabase
+      .from("empresas")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+    empresaId = empresa?.id
   }
 
-  if (!empresaId) redirect("/dashboard")
+  // If still no empresaId, user has no access - show empty state instead of redirect loop
+  if (!empresaId) {
+    return (
+      <div>
+        <Header title="Fornecedores" subtitle="Gestão de fornecedores e catálogo de produtos" />
+        <div className="p-6 text-center text-muted-foreground">
+          Nenhuma empresa associada. Configure a sua empresa primeiro.
+        </div>
+      </div>
+    )
+  }
 
   let fornecedoresRes, produtosRes, fornecedorProdutosRes
   try {
