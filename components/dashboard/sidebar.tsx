@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { logLogout } from "@/lib/audit-log"
+import type { Permissoes, PermissionLevel } from "@/components/funcionarios/permissions-editor"
 import {
   Home,
   FileText,
@@ -28,36 +29,61 @@ import {
   Activity,
 } from "lucide-react"
 
-const menuItems = [
+interface MenuItem {
+  href: string
+  label: string
+  icon: any
+  permissionKey?: keyof Permissoes
+}
+
+const menuItems: MenuItem[] = [
   { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/dashboard/facturas", label: "Facturas", icon: FileText },
-  { href: "/dashboard/recibos", label: "Recibos", icon: Receipt },
-  { href: "/dashboard/despesas", label: "Despesas", icon: Wallet },
-  { href: "/dashboard/cotacoes", label: "Cotacoes", icon: FileSpreadsheet },
-  { href: "/dashboard/clientes", label: "Clientes", icon: Users },
-  { href: "/dashboard/produtos", label: "Produtos", icon: Package },
-  { href: "/dashboard/fornecedores", label: "Fornecedores", icon: Truck },
-  { href: "/dashboard/cartas", label: "Cartas", icon: ScrollText },
+  { href: "/dashboard/facturas", label: "Facturas", icon: FileText, permissionKey: "facturas" },
+  { href: "/dashboard/recibos", label: "Recibos", icon: Receipt, permissionKey: "recibos" },
+  { href: "/dashboard/despesas", label: "Despesas", icon: Wallet, permissionKey: "despesas" },
+  { href: "/dashboard/cotacoes", label: "Cotacoes", icon: FileSpreadsheet, permissionKey: "cotacoes" },
+  { href: "/dashboard/clientes", label: "Clientes", icon: Users, permissionKey: "clientes" },
+  { href: "/dashboard/produtos", label: "Produtos", icon: Package, permissionKey: "produtos" },
+  { href: "/dashboard/fornecedores", label: "Fornecedores", icon: Truck, permissionKey: "fornecedores" },
+  { href: "/dashboard/cartas", label: "Cartas", icon: ScrollText, permissionKey: "cartas" },
   { href: "/dashboard/emails", label: "Emails Enviados", icon: Send },
 ]
 
-const adminMenuItems = [
-  { href: "/dashboard/funcionarios", label: "Funcionarios", icon: UserCog },
-  { href: "/dashboard/salarios", label: "Salarios", icon: Banknote },
-  { href: "/dashboard/conciliacao", label: "Conciliacao", icon: Calculator },
-  { href: "/dashboard/relatorios", label: "Relatorios", icon: BarChart3 },
-  { href: "/dashboard/logs", label: "Logs Actividade", icon: Activity },
-  { href: "/dashboard/configuracoes", label: "Configuracoes", icon: Settings },
+const adminMenuItems: MenuItem[] = [
+  { href: "/dashboard/funcionarios", label: "Funcionarios", icon: UserCog, permissionKey: "funcionarios" },
+  { href: "/dashboard/salarios", label: "Salarios", icon: Banknote, permissionKey: "salarios" },
+  { href: "/dashboard/conciliacao", label: "Conciliacao", icon: Calculator, permissionKey: "conciliacao" },
+  { href: "/dashboard/relatorios", label: "Relatorios", icon: BarChart3, permissionKey: "relatorios" },
+  { href: "/dashboard/logs", label: "Logs Actividade", icon: Activity, permissionKey: "logs" },
+  { href: "/dashboard/configuracoes", label: "Configuracoes", icon: Settings, permissionKey: "configuracoes" },
 ]
+
+const DEFAULT_PERMISSOES: Permissoes = {
+  facturas: "editar",
+  recibos: "editar",
+  despesas: "editar",
+  cotacoes: "editar",
+  clientes: "editar",
+  produtos: "editar",
+  fornecedores: "editar",
+  cartas: "editar",
+  funcionarios: "sem_acesso",
+  salarios: "sem_acesso",
+  conciliacao: "sem_acesso",
+  relatorios: "visualizar",
+  logs: "sem_acesso",
+  configuracoes: "sem_acesso",
+}
 
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [isAdmin, setIsAdmin] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [permissoes, setPermissoes] = useState<Permissoes>(DEFAULT_PERMISSOES)
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkPermissions = async () => {
       try {
         const supabase = createClient()
         const {
@@ -65,22 +91,77 @@ export function Sidebar() {
         } = await supabase.auth.getUser()
 
         if (user) {
-          const { data: funcionario } = await supabase
-            .from("funcionarios")
-            .select("nivel_acesso")
+          // Check if user owns the empresa (owner has full access)
+          const { data: empresa } = await supabase
+            .from("empresas")
+            .select("id")
             .eq("user_id", user.id)
             .maybeSingle()
 
-          setIsAdmin(funcionario?.nivel_acesso === "admin")
+          if (empresa) {
+            // User is the owner - full admin access
+            setIsAdmin(true)
+            setPermissoes({
+              facturas: "editar",
+              recibos: "editar",
+              despesas: "editar",
+              cotacoes: "editar",
+              clientes: "editar",
+              produtos: "editar",
+              fornecedores: "editar",
+              cartas: "editar",
+              funcionarios: "editar",
+              salarios: "editar",
+              conciliacao: "editar",
+              relatorios: "editar",
+              logs: "editar",
+              configuracoes: "editar",
+            })
+          } else {
+            // Check funcionario permissions
+            const { data: funcionario } = await supabase
+              .from("funcionarios")
+              .select("nivel_acesso, permissoes")
+              .eq("user_id", user.id)
+              .maybeSingle()
+
+            if (funcionario) {
+              const isAdminUser = funcionario.nivel_acesso === "admin"
+              setIsAdmin(isAdminUser)
+              
+              if (isAdminUser) {
+                // Admin has full access
+                setPermissoes({
+                  facturas: "editar",
+                  recibos: "editar",
+                  despesas: "editar",
+                  cotacoes: "editar",
+                  clientes: "editar",
+                  produtos: "editar",
+                  fornecedores: "editar",
+                  cartas: "editar",
+                  funcionarios: "editar",
+                  salarios: "editar",
+                  conciliacao: "editar",
+                  relatorios: "editar",
+                  logs: "editar",
+                  configuracoes: "editar",
+                })
+              } else if (funcionario.permissoes) {
+                // Use custom permissions
+                setPermissoes(funcionario.permissoes as Permissoes)
+              }
+            }
+          }
         }
       } catch (error) {
-        console.error("Erro ao verificar admin:", error)
+        console.error("[v0] Erro ao verificar permissoes:", error)
       } finally {
         setIsLoaded(true)
       }
     }
 
-    checkAdmin()
+    checkPermissions()
   }, [])
 
   const handleLogout = async () => {
@@ -90,7 +171,23 @@ export function Sidebar() {
     router.push("/login")
   }
 
-  const visibleMenuItems = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems
+  // Filter menu items based on permissions
+  const filterByPermissions = (items: MenuItem[]) => {
+    return items.filter(item => {
+      // Items without permissionKey are always visible (like Home, Emails)
+      if (!item.permissionKey) return true
+      
+      // Check if user has at least "visualizar" permission
+      const permission = permissoes[item.permissionKey]
+      return permission === "visualizar" || permission === "editar"
+    })
+  }
+
+  const visibleMenuItems = filterByPermissions(menuItems)
+  const visibleAdminItems = filterByPermissions(adminMenuItems)
+  
+  // Only show admin section if user has access to at least one admin item
+  const showAdminSection = visibleAdminItems.length > 0
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
@@ -122,6 +219,34 @@ export function Sidebar() {
             </Link>
           )
         })}
+        
+        {/* Admin Section Divider */}
+        {showAdminSection && (
+          <>
+            <div className="my-2 border-t border-sidebar-muted" />
+            <p className="px-3 py-1 text-xs font-medium text-sidebar-foreground/40 uppercase tracking-wider">
+              Administracao
+            </p>
+            {visibleAdminItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-sidebar-muted text-sidebar-accent"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-muted hover:text-sidebar-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </>
+        )}
       </nav>
 
       {/* Logout */}
@@ -137,4 +262,81 @@ export function Sidebar() {
       </div>
     </aside>
   )
+}
+
+// Export function to check permissions from other components
+export function usePermissions() {
+  const [permissoes, setPermissoes] = useState<Permissoes | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadPermissions = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          // Check if user owns the empresa
+          const { data: empresa } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle()
+
+          if (empresa) {
+            setIsAdmin(true)
+            setPermissoes({
+              facturas: "editar",
+              recibos: "editar",
+              despesas: "editar",
+              cotacoes: "editar",
+              clientes: "editar",
+              produtos: "editar",
+              fornecedores: "editar",
+              cartas: "editar",
+              funcionarios: "editar",
+              salarios: "editar",
+              conciliacao: "editar",
+              relatorios: "editar",
+              logs: "editar",
+              configuracoes: "editar",
+            })
+          } else {
+            const { data: funcionario } = await supabase
+              .from("funcionarios")
+              .select("nivel_acesso, permissoes")
+              .eq("user_id", user.id)
+              .maybeSingle()
+
+            if (funcionario) {
+              setIsAdmin(funcionario.nivel_acesso === "admin")
+              setPermissoes(funcionario.permissoes as Permissoes || DEFAULT_PERMISSOES)
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error loading permissions:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadPermissions()
+  }, [])
+
+  const canView = (module: keyof Permissoes): boolean => {
+    if (isAdmin) return true
+    if (!permissoes) return false
+    const level = permissoes[module]
+    return level === "visualizar" || level === "editar"
+  }
+
+  const canEdit = (module: keyof Permissoes): boolean => {
+    if (isAdmin) return true
+    if (!permissoes) return false
+    return permissoes[module] === "editar"
+  }
+
+  return { permissoes, isAdmin, isLoading, canView, canEdit }
 }
