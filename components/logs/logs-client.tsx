@@ -318,29 +318,59 @@ export function LogsClient({ logs, funcionarios }: LogsClientProps) {
                               </button>
                               
                               {isExpanded && (
-                                <div className="mt-2 p-3 bg-muted/50 rounded-md text-xs space-y-2">
+                                <div className="mt-3 border rounded-lg overflow-hidden">
                                   {log.campos_alterados && log.campos_alterados.length > 0 && (
-                                    <div>
-                                      <span className="font-medium">Campos alterados:</span>{" "}
-                                      {log.campos_alterados.join(", ")}
+                                    <div className="px-4 py-3 bg-muted/30 border-b">
+                                      <span className="text-xs font-medium text-muted-foreground">Campos alterados</span>
+                                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                        {log.campos_alterados.map((campo, idx) => (
+                                          <Badge key={idx} variant="outline" className="text-xs font-normal">
+                                            {campo}
+                                          </Badge>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
-                                  {log.dados_anteriores && (
-                                    <div>
-                                      <span className="font-medium">Dados anteriores:</span>
-                                      <pre className="mt-1 p-2 bg-red-50 dark:bg-red-950 rounded text-xs overflow-auto">
-                                        {JSON.stringify(log.dados_anteriores, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {log.dados_novos && (
-                                    <div>
-                                      <span className="font-medium">Dados novos:</span>
-                                      <pre className="mt-1 p-2 bg-green-50 dark:bg-green-950 rounded text-xs overflow-auto">
-                                        {JSON.stringify(log.dados_novos, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
+                                  
+                                  <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+                                    {log.dados_anteriores && Object.keys(log.dados_anteriores).length > 0 && (
+                                      <div className="p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                          <span className="text-xs font-semibold text-red-600 dark:text-red-400">Dados Anteriores</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                          {Object.entries(log.dados_anteriores).map(([key, value]) => (
+                                            <div key={key} className="flex flex-col">
+                                              <span className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
+                                              <span className="text-sm font-medium truncate">
+                                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "-")}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {log.dados_novos && Object.keys(log.dados_novos).length > 0 && (
+                                      <div className="p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                          <span className="text-xs font-semibold text-green-600 dark:text-green-400">Dados Novos</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                          {Object.entries(log.dados_novos).map(([key, value]) => (
+                                            <div key={key} className="flex flex-col">
+                                              <span className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
+                                              <span className="text-sm font-medium truncate">
+                                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "-")}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
