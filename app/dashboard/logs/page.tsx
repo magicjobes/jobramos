@@ -4,7 +4,7 @@ import { Header } from "@/components/dashboard/header"
 import { LogsClient } from "@/components/logs/logs-client"
 
 export default async function LogsPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
