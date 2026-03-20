@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect, Suspense } from "react"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { logLogin } from "@/lib/audit-log"
 
 function LoginForm() {
   const [email, setEmail] = useState("")
@@ -67,6 +68,9 @@ function LoginForm() {
           .from("funcionarios")
           .update({ ultimo_login: new Date().toISOString() })
           .eq("id", funcionario.id)
+
+        // Registar log de login
+        await logLogin()
       }
 
       router.push("/dashboard")

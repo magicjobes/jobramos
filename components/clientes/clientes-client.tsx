@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Users, Pencil, Trash2, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { logCriar, logEditar, logEliminar } from "@/lib/audit-log"
 
 interface Cliente {
   id: string
@@ -102,12 +103,15 @@ export function ClientesClient({ clientes: initialClientes }: ClientesClientProp
           user_id: user.id,
           ...clienteData,
         })
-        if (error) throw error
-      }
-
-      setIsOpen(false)
-      resetForm()
-      mutate()
+  if (error) throw error
+  await logEditar("clientes", editingId, `Cliente actualizado - ${nome}`)
+  } else {
+  await logCriar("clientes", data?.id || "", `Cliente criado - ${nome}`, { nome, nuit, telefone, email })
+  }
+  
+  setIsOpen(false)
+  resetForm()
+  mutate()
     } catch (error) {
       console.error(`Erro ao ${editingId ? "atualizar" : "criar"} cliente:`, error)
     } finally {
@@ -126,9 +130,11 @@ export function ClientesClient({ clientes: initialClientes }: ClientesClientProp
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from("clientes").delete().eq("id", id)
-    mutate()
+  const clienteToDelete = clientes.find(c => c.id === id)
+  const supabase = createClient()
+  await supabase.from("clientes").delete().eq("id", id)
+  await logEliminar("clientes", id, `Cliente eliminado - ${clienteToDelete?.nome || "N/A"}`, clienteToDelete)
+  mutate()
   }
 
   return (

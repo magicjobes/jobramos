@@ -6,6 +6,7 @@ import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { logLogout } from "@/lib/audit-log"
 import {
   Home,
   FileText,
@@ -24,6 +25,7 @@ import {
   Wallet,
   Banknote,
   Calculator,
+  Activity,
 } from "lucide-react"
 
 const menuItems = [
@@ -44,6 +46,7 @@ const adminMenuItems = [
   { href: "/dashboard/salarios", label: "Salarios", icon: Banknote },
   { href: "/dashboard/conciliacao", label: "Conciliacao", icon: Calculator },
   { href: "/dashboard/relatorios", label: "Relatorios", icon: BarChart3 },
+  { href: "/dashboard/logs", label: "Logs Actividade", icon: Activity },
   { href: "/dashboard/configuracoes", label: "Configuracoes", icon: Settings },
 ]
 
@@ -81,6 +84,7 @@ export function Sidebar() {
   }, [])
 
   const handleLogout = async () => {
+    await logLogout()
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { logCriar, logEditar, logEliminar } from "@/lib/audit-log"
 
 interface Funcionario {
   id: string
@@ -137,9 +138,16 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
         setFuncionarios([data, ...funcionarios])
       }
 
-      resetForm()
-      setIsOpen(false)
-      router.refresh()
+  // Registar log de actividade
+  if (editingId) {
+    await logEditar("funcionarios", editingId, `Funcionario actualizado - ${nome} (${email})`)
+  } else {
+    await logCriar("funcionarios", data?.id || "", `Funcionario criado - ${nome} (${email})`, { nome, email, cargo, nivelAcesso })
+  }
+  
+  resetForm()
+  setIsOpen(false)
+  router.refresh()
     } catch (error: any) {
       alert(error.message || `Erro ao ${editingId ? "atualizar" : "criar"} funcionário`)
     } finally {
@@ -226,10 +234,11 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
   }
 
   const handleDelete = async (funcionarioId: string, userId: string | null) => {
-    if (!confirm("Tem certeza que deseja remover este funcionário? Esta ação irá desativar o acesso dele ao sistema."))
-      return
-
-    setLoadingStates((prev) => ({ ...prev, [`delete-${funcionarioId}`]: true }))
+  const funcionarioToDelete = funcionarios.find(f => f.id === funcionarioId)
+  if (!confirm("Tem certeza que deseja remover este funcionário? Esta ação irá desativar o acesso dele ao sistema."))
+  return
+  
+  setLoadingStates((prev) => ({ ...prev, [`delete-${funcionarioId}`]: true }))
 
     try {
       const supabase = createClient()
@@ -249,10 +258,11 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
       // Depois, eliminar o registo
       const { error } = await supabase.from("funcionarios").delete().eq("id", funcionarioId)
 
-      if (error) throw error
-
-      setFuncionarios(funcionarios.filter((f) => f.id !== funcionarioId))
-      console.log(`[v0] Funcionário ${funcionarioId} removido com sucesso`)
+  if (error) throw error
+  
+  setFuncionarios(funcionarios.filter((f) => f.id !== funcionarioId))
+  await logEliminar("funcionarios", funcionarioId, `Funcionario eliminado - ${funcionarioToDelete?.nome || "N/A"} (${funcionarioToDelete?.email || "N/A"})`, funcionarioToDelete)
+  console.log(`[v0] Funcionário ${funcionarioId} removido com sucesso`)
     } catch (error: any) {
       console.error("[v0] Erro ao remover funcionário:", error)
       alert(error.message || "Erro ao remover funcionário")
