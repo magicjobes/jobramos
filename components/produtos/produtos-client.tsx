@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -69,6 +69,10 @@ export function ProdutosClient({ produtos: initialProdutos, fornecedores, empres
   const [isLoading, setIsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null)
+  
+  // Prevent double submissions
+  const isSubmittingRef = useRef(false)
+  const isStockSubmittingRef = useRef(false)
 
   // Form states for product
   const [nome, setNome] = useState("")
@@ -141,9 +145,14 @@ export function ProdutosClient({ produtos: initialProdutos, fornecedores, empres
   }, [stockFornecedorId, stockProdutoId])
 
   const handleSubmit = async () => {
+    // Prevent double submission
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
+    
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       toast.error("Não autenticado")
+      isSubmittingRef.current = false
       return
     }
 
@@ -182,18 +191,25 @@ export function ProdutosClient({ produtos: initialProdutos, fornecedores, empres
       toast.error(`Erro ao ${editingId ? "actualizar" : "criar"} produto: ${error.message}`)
     } finally {
       setIsLoading(false)
+      isSubmittingRef.current = false
     }
   }
 
   const handleStockEntry = async () => {
+    // Prevent double submission
+    if (isStockSubmittingRef.current) return
+    isStockSubmittingRef.current = true
+    
     if (!stockProdutoId || !stockQuantidade || Number(stockQuantidade) <= 0) {
       toast.error("Preencha o produto e a quantidade")
+      isStockSubmittingRef.current = false
       return
     }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       toast.error("Não autenticado")
+      isStockSubmittingRef.current = false
       return
     }
 
@@ -263,6 +279,7 @@ export function ProdutosClient({ produtos: initialProdutos, fornecedores, empres
       toast.error(`Erro ao registar entrada: ${error.message}`)
     } finally {
       setIsLoading(false)
+      isStockSubmittingRef.current = false
     }
   }
 
