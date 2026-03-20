@@ -91,7 +91,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 border-b border-sidebar-muted p-4">
-        <Image src="/images/logo.png" alt="Magic Pro Services" width={40} height={40} className="h-10 w-10" style={{ width: "auto", height: "auto" }} />
+        <Image src="/images/logo.png" alt="Magic Pro Services" width={40} height={40} className="h-10 w-10 object-contain" />
         <div>
           <h1 className="font-semibold leading-tight">Magic Pro</h1>
           <p className="text-xs text-sidebar-foreground/60">Services</p>
