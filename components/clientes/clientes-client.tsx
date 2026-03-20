@@ -98,20 +98,19 @@ export function ClientesClient({ clientes: initialClientes }: ClientesClientProp
       if (editingId) {
         const { error } = await supabase.from("clientes").update(clienteData).eq("id", editingId)
         if (error) throw error
+        await logEditar("clientes", editingId, `Cliente actualizado - ${nome}`)
       } else {
-        const { error } = await supabase.from("clientes").insert({
+        const { data, error } = await supabase.from("clientes").insert({
           user_id: user.id,
           ...clienteData,
-        })
-  if (error) throw error
-  await logEditar("clientes", editingId, `Cliente actualizado - ${nome}`)
-  } else {
-  await logCriar("clientes", data?.id || "", `Cliente criado - ${nome}`, { nome, nuit, telefone, email })
-  }
+        }).select().single()
+        if (error) throw error
+        await logCriar("clientes", data?.id || "", `Cliente criado - ${nome}`, { nome, nuit, telefone, email })
+      }
   
-  setIsOpen(false)
-  resetForm()
-  mutate()
+      setIsOpen(false)
+      resetForm()
+      mutate()
     } catch (error) {
       console.error(`Erro ao ${editingId ? "atualizar" : "criar"} cliente:`, error)
     } finally {
