@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { logCriar, logEditar, logEliminar } from "@/lib/audit-log"
+import { PermissionsEditor, type Permissoes, DEFAULT_PERMISSOES, ADMIN_PERMISSOES } from "./permissions-editor"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Funcionario {
   id: string
@@ -36,6 +38,7 @@ interface Funcionario {
   instituicao_ensino: string | null
   doenca_cronica: boolean | null
   descricao: string | null
+  permissoes: Permissoes | null
   created_at: string
   updated_at: string
 }
@@ -73,6 +76,7 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
     doenca_cronica: false,
     descricao: "",
     nivel_acesso: "funcionario" as "admin" | "funcionario",
+    permissoes: DEFAULT_PERMISSOES,
   })
 
   const filteredFuncionarios = funcionarios.filter(
@@ -113,6 +117,7 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
         doenca_cronica: formData.doenca_cronica,
         descricao: formData.descricao || null,
         nivel_acesso: formData.nivel_acesso,
+        permissoes: formData.nivel_acesso === "admin" ? ADMIN_PERMISSOES : formData.permissoes,
         estado: "pendente",
         empresa_id: empresaId,
       }
@@ -138,12 +143,17 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
         setFuncionarios([data, ...funcionarios])
       }
 
-  // Registar log de actividade
-  if (editingId) {
-    await logEditar("funcionarios", editingId, `Funcionario actualizado - ${nome} (${email})`)
-  } else {
-    await logCriar("funcionarios", data?.id || "", `Funcionario criado - ${nome} (${email})`, { nome, email, cargo, nivelAcesso })
-  }
+      // Registar log de actividade
+      if (editingId) {
+        await logEditar("funcionarios", editingId, `Funcionario actualizado - ${formData.nome} (${formData.email})`)
+      } else {
+        await logCriar("funcionarios", "", `Funcionario criado - ${formData.nome} (${formData.email})`, { 
+          nome: formData.nome, 
+          email: formData.email, 
+          cargo: formData.cargo, 
+          nivelAcesso: formData.nivel_acesso 
+        })
+      }
   
   resetForm()
   setIsOpen(false)
@@ -174,6 +184,7 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
       doenca_cronica: false,
       descricao: "",
       nivel_acesso: "funcionario",
+      permissoes: DEFAULT_PERMISSOES,
     })
     setEditingId(null)
   }
@@ -197,6 +208,7 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
       doenca_cronica: funcionario.doenca_cronica || false,
       descricao: funcionario.descricao || "",
       nivel_acesso: funcionario.nivel_acesso,
+      permissoes: funcionario.permissoes || DEFAULT_PERMISSOES,
     })
     setEditingId(funcionario.id)
     setIsOpen(true)
@@ -347,6 +359,13 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
               <DialogTitle>{editingId ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <Tabs defaultValue="dados" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
+                  <TabsTrigger value="permissoes">Permissoes</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="dados" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nome">Nome Completo *</Label>
@@ -535,6 +554,22 @@ export function FuncionariosClient({ funcionarios: initialFuncionarios, currentU
                   className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               </div>
+                </TabsContent>
+                
+                <TabsContent value="permissoes" className="mt-4">
+                  {formData.nivel_acesso === "admin" ? (
+                    <div className="p-4 bg-muted/50 rounded-lg text-center text-muted-foreground">
+                      <p className="font-medium">Administradores tem acesso total a todos os modulos.</p>
+                      <p className="text-sm mt-1">Para definir permissoes especificas, altere o nivel de acesso para &quot;Funcionario&quot;.</p>
+                    </div>
+                  ) : (
+                    <PermissionsEditor
+                      permissoes={formData.permissoes}
+                      onChange={(newPermissoes) => setFormData({ ...formData, permissoes: newPermissoes })}
+                    />
+                  )}
+                </TabsContent>
+              </Tabs>
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => {

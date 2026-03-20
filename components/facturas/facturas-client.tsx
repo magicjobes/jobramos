@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table"
 import { toast } from "sonner"
 import { logEmitir, logAnular } from "@/lib/audit-log"
+import { usePermissionCheck } from "@/components/ui/permission-guard"
 import {
   Plus,
   Trash2,
@@ -98,6 +99,9 @@ export function FacturasClient({
 }: FacturasClientProps) {
   const [facturas, setFacturas] = useState(initialFacturas)
   const [showDialog, setShowDialog] = useState(false)
+  
+  // Check permissions
+  const { canEdit } = usePermissionCheck("facturas")
   const [showPrint, setShowPrint] = useState(false)
   const [selectedFactura, setSelectedFactura] = useState<any>(null)
   const [selectedItens, setSelectedItens] = useState<any[]>([])
@@ -771,29 +775,35 @@ export function FacturasClient({
         </TabsList>
 
         <TabsContent value="facturas" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openCreateDialog("FT")}>
-              <Plus className="mr-2 h-4 w-4" /> Nova Factura
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button onClick={() => openCreateDialog("FT")}>
+                <Plus className="mr-2 h-4 w-4" /> Nova Factura
+              </Button>
+            </div>
+          )}
           {renderDocTable(facturasFT, "FT")}
         </TabsContent>
 
         <TabsContent value="nc" className="space-y-4">
-          <div className="flex justify-end">
-            <Button variant="destructive" onClick={() => openCreateDialog("NC")}>
-              <Plus className="mr-2 h-4 w-4" /> Nova Nota de Credito
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button variant="destructive" onClick={() => openCreateDialog("NC")}>
+                <Plus className="mr-2 h-4 w-4" /> Nova Nota de Credito
+              </Button>
+            </div>
+          )}
           {renderDocTable(facturasNC, "NC")}
         </TabsContent>
 
         <TabsContent value="nd" className="space-y-4">
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => openCreateDialog("ND")}>
-              <Plus className="mr-2 h-4 w-4" /> Nova Nota de Debito
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => openCreateDialog("ND")}>
+                <Plus className="mr-2 h-4 w-4" /> Nova Nota de Debito
+              </Button>
+            </div>
+          )}
           {renderDocTable(facturasND, "ND")}
         </TabsContent>
       </Tabs>
