@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Header } from "@/components/dashboard/header"
 import { RelatoriosClient } from "@/components/relatorios/relatorios-client"
+import { hasModuleAccess } from "@/lib/check-permission"
 
 export default async function RelatoriosPage() {
   const supabase = await createClient()
@@ -14,23 +15,25 @@ export default async function RelatoriosPage() {
 
   const { data: currentFuncionario } = await supabase
     .from("funcionarios")
-    .select("nivel_acesso, empresa_id")
+    .select("nivel_acesso, empresa_id, permissoes")
     .eq("user_id", user.id)
     .maybeSingle()
 
-  if (!currentFuncionario || currentFuncionario.nivel_acesso !== "admin") {
+  // Verificar se e dono da empresa
+  const { data: empresa } = await supabase
+    .from("empresas")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  const isEmpresaOwner = !!empresa
+
+  // Verificar permissao de acesso ao modulo relatorios
+  if (!hasModuleAccess(currentFuncionario, isEmpresaOwner, "relatorios")) {
     redirect("/dashboard")
   }
 
-  let empresaId = currentFuncionario?.empresa_id
-  if (!empresaId) {
-    const { data: empresa } = await supabase
-      .from("empresas")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle()
-    empresaId = empresa?.id
-  }
+  let empresaId = currentFuncionario?.empresa_id || empresa?.id
 
 const [
   facturasRes,

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { LogsClient } from "@/components/logs/logs-client"
+import { hasModuleAccess } from "@/lib/check-permission"
 
 export default async function LogsPage() {
   const supabase = await createClient()
@@ -12,22 +13,19 @@ export default async function LogsPage() {
   // First check if user is a funcionario
   const { data: funcionario } = await supabase
     .from("funcionarios")
-    .select("empresa_id, nivel_acesso")
+    .select("empresa_id, nivel_acesso, permissoes")
     .eq("user_id", user.id)
     .maybeSingle()
 
-  let empresaId = funcionario?.empresa_id
-  const isAdmin = funcionario?.nivel_acesso === "admin"
+  // Check if user owns an empresa
+  const { data: empresa } = await supabase
+    .from("empresas")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle()
 
-  // If not a funcionario, check if user owns an empresa
-  if (!empresaId) {
-    const { data: empresa } = await supabase
-      .from("empresas")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle()
-    empresaId = empresa?.id
-  }
+  const empresaId = funcionario?.empresa_id || empresa?.id
+  const isEmpresaOwner = !!empresa
 
   if (!empresaId) {
     return (
@@ -40,13 +38,13 @@ export default async function LogsPage() {
     )
   }
 
-  // Only admins can see logs
-  if (funcionario && !isAdmin) {
+  // Verificar permissao de acesso ao modulo logs
+  if (!hasModuleAccess(funcionario, isEmpresaOwner, "logs")) {
     return (
       <div>
         <Header title="Logs de Actividade" subtitle="Histórico de todas as acções no sistema" />
         <div className="p-6 text-center text-muted-foreground">
-          Apenas administradores podem visualizar os logs de actividade.
+          Nao tem permissao para visualizar os logs de actividade.
         </div>
       </div>
     )
